@@ -1,0 +1,27 @@
+FROM golang:1.9
+
+RUN NVIDIA_GPGKEY_SUM=d1be581509378368edeec8c1eb2958702feedf3bc3d17011adbf24efacce4ab5 && \
+    NVIDIA_GPGKEY_FPR=ae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80 && \
+    apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/7fa2af80.pub && \
+    apt-key adv --export --no-emit-version -a $NVIDIA_GPGKEY_FPR | tail -n +2 > cudasign.pub && \
+    echo "$NVIDIA_GPGKEY_SUM  cudasign.pub" | sha256sum -c --strict - && rm cudasign.pub && \
+    echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64 /" > /etc/apt/sources.list.d/cuda.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        cuda-cudart-dev-8-0 \
+        cuda-misc-headers-8-0 \
+        cuda-nvml-dev-8-0 \
+    && rm -rf /var/lib/apts/lists/*
+
+VOLUME /go/bin
+WORKDIR /go/src/github.com/roguePanda/kubernetes-nvidia-drivers
+COPY . .
+
+ENV CGO_CFLAGS "-I /usr/local/cuda-8.0/include"
+ENV CGO_LDFLAGS "-L /usr/local/cuda-8.0/lib64"
+
+ARG USER_ID
+RUN useradd --non-unique --uid $USER_ID builder
+USER builder
+
+CMD go install -v -ldflags="-s" .

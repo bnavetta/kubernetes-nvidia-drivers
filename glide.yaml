@@ -1,0 +1,15 @@
+package: github.com/roguePanda/kubernetes-nvidia-drivers
+import:
+- package: github.com/spf13/cobra
+- package: golang.org/x/sys
+  subpackages:
+  - unix
+- package: github.com/NVIDIA/nvidia-docker
+  version: ^1.0.1
+- package: github.com/justinas/alice
+  version: ^1.0.0
+- package: gopkg.in/tylerb/graceful.v1
+  version: ^1.2.15
+- package: github.com/urfave/negroni
+  version: ^0.2.0
+- package: gopkg.in/yaml.v2

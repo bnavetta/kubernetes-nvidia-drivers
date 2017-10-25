@@ -1,0 +1,11 @@
+*.a
+*.o
+*.so
+*.so.*
+*.swp
+.\#*
+*~
+\#*
+bin
+dist
+samples

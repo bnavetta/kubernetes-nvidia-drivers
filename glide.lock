@@ -1,0 +1,29 @@
+hash: 05f1d3b416947c0797b38efc185ad0827baeed0e099785e27718581267c50d74
+updated: 2017-05-23T23:08:35.42357856-04:00
+imports:
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/justinas/alice
+  version: 052b8b6c18edb9db317af86806d8e00ebaa94160
+- name: github.com/NVIDIA/nvidia-docker
+  version: 01d2c9436620d7dde4672e414698afe6da4a282f
+  subpackages:
+  - src/cuda
+  - src/ldcache
+  - src/nvidia
+  - src/nvml
+- name: github.com/spf13/cobra
+  version: ca57f0f5dba473a8a58765d16d7e811fb8027add
+- name: github.com/spf13/pflag
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
+- name: github.com/urfave/negroni
+  version: fde5e16d32adc7ad637e9cd9ad21d4ebc6192535
+- name: golang.org/x/sys
+  version: dbc2be9168a660ef302e04b6ff6406de6f967473
+  subpackages:
+  - unix
+- name: gopkg.in/tylerb/graceful.v1
+  version: 4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb
+- name: gopkg.in/yaml.v2
+  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+testImports: []

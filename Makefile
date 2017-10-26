@@ -15,9 +15,3 @@ clean:
 
 distclean:
 	@rm -rf $(BIN_DIR)
-
-deployment_image:
-	@$(DOCKER) build -t bnavetta/nvidia-drivers-deployer:latest -f Dockerfile.deploy $(CURDIR)
-
-push: deployment_image
-	@$(DOCKER) push bnavetta/nvidia-drivers-deployer:latest

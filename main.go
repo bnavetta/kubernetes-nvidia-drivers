@@ -1,90 +1,49 @@
 package main
 
 import (
+	"fmt"
+	"github.com/NVIDIA/nvidia-docker/src/nvidia"
 	"github.com/NVIDIA/nvidia-docker/src/nvml"
-	"github.com/roguePanda/kubernetes-nvidia-drivers/flexvol"
-	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 )
 
-var InitCmd = &cobra.Command{
-	Use: "init",
-	Run: func(cmd *cobra.Command, args []string) {
-		flexvol.Log(flexvol.Reply{
-			Status:       flexvol.StatusSuccess,
-			Capabilities: &flexvol.Capabilities{Attach: false},
-		})
-	},
-}
+const VolumeRoot = "/var/lib/kubernetes-nvidia-drivers"
 
-var MountDeviceCmd = &cobra.Command{
-	Use: "mountdevice",
-	Run: func(cmd *cobra.Command, args []string) {
-		mountDir := args[0]
-		msg, err := flexvol.CreateVolume(mountDir)
-		if err != nil {
-			flexvol.Log(flexvol.Failure(err.Error()))
-		} else {
-			flexvol.Log(flexvol.Success(msg))
-		}
-	},
-}
+func createVolume() error {
+	err := nvml.Init()
+	if err != nil {
+		return fmt.Errorf("error initializing NVML: %s", err)
+	}
+	defer nvml.Shutdown()
 
-var UnmountDeviceCmd = &cobra.Command{
-	Use: "unmountdevice",
-	Run: func(cmd *cobra.Command, args []string) {
-		mountDir := args[0]
-		children, err := ioutil.ReadDir(mountDir)
-		if err != nil {
-			flexvol.Log(flexvol.Failure(err.Error()))
-			return
-		}
+	vols, err := nvidia.LookupVolumes(VolumeRoot)
+	if err != nil {
+		return fmt.Errorf("error looking up NVIDIA driver volumes: %s", err)
+	}
 
-		for _, child := range children {
-			err = os.RemoveAll(path.Join(mountDir, child.Name()))
-			if err != nil {
-				flexvol.Log(flexvol.Failure(err.Error()))
-				return
-			}
-		}
+	driverVol := vols["nvidia_driver"]
+	fmt.Printf("Found volume for driver version %s in %s\n", driverVol.Version, driverVol.Path)
 
-		flexvol.Log(flexvol.Success("Successfully removed directory contents"))
-	},
-}
+	err = driverVol.Create(nvidia.LinkOrCopyStrategy{})
+	if err != nil {
+		return fmt.Errorf("unable to extract driver files: %s", err)
+	}
 
-var RootCmd = &cobra.Command{
-	Use:           "nvidiaDrivers",
-	Short:         "Kubernetes FlexVolume driver for nvidia device driver libraries",
-	SilenceErrors: true,
-	SilenceUsage:  true,
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Usage()
-		os.Exit(1)
-	},
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if err := nvml.Init(); err != nil {
-			flexvol.Log(flexvol.Failure(err.Error()))
-			os.Exit(1)
-		}
-	},
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		nvml.Shutdown()
-	},
+	driverPath := path.Join(driverVol.Path, driverVol.Version)
+	currentPath := path.Join(VolumeRoot, "current")
+	fmt.Printf("Linking %s into %s\n", driverPath, currentPath)
+	err = os.Link(driverPath, currentPath)
+	if err != nil {
+		return fmt.Errorf("unable to link current driver version: %s", err)
+	}
+
+	return nil
 }
 
 func main() {
-	RootCmd.AddCommand(InitCmd, MountDeviceCmd, UnmountDeviceCmd)
-	err := RootCmd.Execute()
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "unknown command") {
-			flexvol.Log(flexvol.Reply{
-				Status: flexvol.StatusNotSupported,
-			})
-		} else {
-			flexvol.Log(flexvol.Failure(err.Error()))
-		}
+	if err := createVolume(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 }

@@ -1,60 +1,61 @@
 package flexvol
 
 import (
-	"errors"
 	"fmt"
 	"github.com/NVIDIA/nvidia-docker/src/nvidia"
-	"golang.org/x/sys/unix"
+	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 )
 
-type DriverVolume struct {
-	vol *nvidia.Volume
-}
+func CreateVolume(mountPath string) (msg string, err error) {
+	base, err := ioutil.TempDir("", "kubernetes-nvidia-drivers")
+	defer func() {
+		if base != "" {
+			os.RemoveAll(base)
+		}
+	}()
 
-const NvidiaVolumePrefix = "/var/lib/kubernetes-nvidia-drivers"
-
-func Lookup() (*DriverVolume, error) {
-	vols, err := nvidia.LookupVolumes(NvidiaVolumePrefix)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	vol, exists := vols["nvidia_driver"]
-	if !exists {
-		return nil, errors.New("nvidia_driver volume not found")
-	}
-
-	return &DriverVolume{vol}, nil
-}
-
-func (d *DriverVolume) Create() error {
-	err := d.vol.Create(nvidia.LinkStrategy{})
+	vols, err := nvidia.LookupVolumes(base)
 	if err != nil {
-		//os.RemoveAll(d.vol.Path)
-		return err
+		return
 	}
 
-	return nil
-}
+	driverVol := vols["nvidia_driver"]
+	err = driverVol.Create(nvidia.LinkOrCopyStrategy{})
+	if err != nil {
+		return
+	}
 
-func (d *DriverVolume) Remove() error {
-	return os.RemoveAll(d.vol.Path)
-}
+	driverPath := path.Join(driverVol.Path, driverVol.Version)
 
-func (d *DriverVolume) Bind(target string) error {
-	return unix.Mount(path.Join(d.vol.Path, d.vol.Version), target, "", unix.MS_BIND, "")
-}
+	err = os.MkdirAll(filepath.Dir(mountPath), 0777)
+	if err != nil {
+		return
+	}
 
-func Unbind(target string) error {
-	return unix.Unmount(target, 0)
-}
+	err = os.Rename(driverPath, mountPath)
 
-func (d *DriverVolume) Name() string {
-	return fmt.Sprintf("%v_%v", d.vol.Name, d.vol.Version)
-}
+	//contents, err := ioutil.ReadDir(driverPath)
+	//if err != nil {
+	//	return
+	//}
+	//
+	//for _, entry := range contents {
+	//	err = os.Rename(path.Join(driverPath, entry.Name()), path.Join(mountPath, entry.Name()))
+	//	if err != nil {
+	//		return
+	//	}
+	//}
 
-func (d *DriverVolume) String() string {
-	return fmt.Sprintf("NVIDIA driver volume version %v at %v", d.vol.Version, d.vol.Path)
+	if err == nil {
+		msg = fmt.Sprintf("Mounted volume v%s NVIDIA drivers at %s", driverVol.Version, mountPath)
+	}
+
+	return
 }

@@ -3,16 +3,18 @@ package flexvol
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
 )
 
+type Capabilities struct {
+	Attach bool `json:"attach"`
+}
+
 type Reply struct {
-	Status     string `json:"status"`
-	Message    string `json:"message,omitempty"`
-	Device     string `json:"device,omitempty"`
-	VolumeName string `json:"volumeName,omitempty"`
-	//Attached   bool
+	Status       string        `json:"status"`
+	Message      string        `json:"message,omitempty"`
+	Device       string        `json:"device,omitempty"`
+	VolumeName   string        `json:"volumeName,omitempty"`
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 const (
@@ -38,14 +40,17 @@ func Success(message string) Reply {
 func Log(reply Reply) {
 	message, err := json.Marshal(reply)
 	if err != nil {
-		fmt.Printf(`{"status": "Failure", "message": "%v"}`, strings.Replace(err.Error(), `"`, `\"`, -1))
-		//os.Exit(1)
+		errReply := struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		}{"Failure", err.Error()}
+		errMessage, err := json.Marshal(errReply)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(string(errMessage))
 	}
 
-	os.Stdout.Write(message)
-	//if reply.Status == StatusFailure {
-	//	os.Exit(1)
-	//} else {
-	//	os.Exit(0)
-	//}
+	fmt.Println(string(message))
 }

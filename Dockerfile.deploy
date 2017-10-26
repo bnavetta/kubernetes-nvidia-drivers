@@ -1,0 +1,6 @@
+FROM alpine:3.5
+
+COPY bin/kubernetes-nvidia-drivers /nvidiaDrivers
+COPY deploy.sh /usr/local/bin/deploy.sh
+
+CMD ["/usr/local/bin/deploy.sh"]

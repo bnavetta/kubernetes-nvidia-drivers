@@ -10,6 +10,12 @@ import (
 )
 
 func CreateVolume(mountPath string) (msg string, err error) {
+	sentinelFile, err := os.Create("/home/ben/kube-nvidia-sentinel")
+	if err != nil {
+		return
+	}
+	defer sentinelFile.Close()
+
 	base, err := ioutil.TempDir("", "kubernetes-nvidia-drivers")
 	defer func() {
 		if base != "" {
@@ -21,12 +27,15 @@ func CreateVolume(mountPath string) (msg string, err error) {
 		return
 	}
 
+	fmt.Fprintf(sentinelFile, "Extracting volume into %s\n", base)
+
 	vols, err := nvidia.LookupVolumes(base)
 	if err != nil {
 		return
 	}
 
 	driverVol := vols["nvidia_driver"]
+	fmt.Fprintf(sentinelFile, "Found volume for version %s\n", driverVol.Version)
 	err = driverVol.Create(nvidia.LinkOrCopyStrategy{})
 	if err != nil {
 		return
@@ -39,19 +48,8 @@ func CreateVolume(mountPath string) (msg string, err error) {
 		return
 	}
 
+	fmt.Fprintf(sentinelFile, "Renaming %s to %s\n", driverPath, mountPath)
 	err = os.Rename(driverPath, mountPath)
-
-	//contents, err := ioutil.ReadDir(driverPath)
-	//if err != nil {
-	//	return
-	//}
-	//
-	//for _, entry := range contents {
-	//	err = os.Rename(path.Join(driverPath, entry.Name()), path.Join(mountPath, entry.Name()))
-	//	if err != nil {
-	//		return
-	//	}
-	//}
 
 	if err == nil {
 		msg = fmt.Sprintf("Mounted volume v%s NVIDIA drivers at %s", driverVol.Version, mountPath)
